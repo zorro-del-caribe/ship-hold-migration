@@ -1,0 +1,5 @@
+{
+  "username": "postgres",
+  "password": "docker",
+  "database": "ship-hold-migrations-test"
+}
