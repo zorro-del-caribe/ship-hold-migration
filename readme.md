@@ -29,7 +29,7 @@ You can optionally add a **name** property otherwise it will use the file name (
 //myMigration.js
 
 module.exports = {
-    name:'createUserTable,
+    name:'createUserTable',
     timestamp:12312423423,
     up(sh){
     //code to execute for the migration (sh is the shiphold instance)
