@@ -2,10 +2,11 @@ const test = require('tape');
 const mig = require('../index');
 const shiphold = require('ship-hold');
 const conf = {
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-};
+  username: process.env.DB_USERNAME !== undefined ? process.env.DB_USERNAME : 'posgres',
+  password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'docker',
+  database: process.env.DB_NAME !== undefined ? process.env.DB_NAME : 'ship-hold-migrations-test';
+}
+;
 
 function clean (sh, modelName = 'migrations') {
   return sh
@@ -200,7 +201,7 @@ test('return executed migrations (foo)', t=> {
     .catch(t.end);
 });
 
-test('down the last migration',t=>{
+test('down the last migration', t=> {
   const sh = shiphold(conf);
   mig(sh, {
     directory: '/test/migrations'
@@ -215,12 +216,12 @@ test('down the last migration',t=>{
       return migrator.down();
     })
     .then(function (result) {
-      t.equal(result.length,1);
-      t.equal(result[0].name,'barIsIt');
+      t.equal(result.length, 1);
+      t.equal(result[0].name, 'barIsIt');
       return migrator.pending();
     })
     .then(function (pendings) {
-      t.deepEqual(pendings,['barIsIt']);
+      t.deepEqual(pendings, ['barIsIt']);
       return clean(sh, 'migrations');
     })
     .then(function () {
