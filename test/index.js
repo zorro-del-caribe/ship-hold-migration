@@ -2,7 +2,7 @@ const test = require('tape');
 const mig = require('../index');
 const shiphold = require('ship-hold');
 const conf = {
-  username: process.env.DB_USERNAME !== undefined ? process.env.DB_USERNAME : 'posgres',
+  username: process.env.DB_USERNAME !== undefined ? process.env.DB_USERNAME : 'postgres',
   password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'docker',
   database: process.env.DB_NAME !== undefined ? process.env.DB_NAME : 'ship-hold-migrations-test'
 }
