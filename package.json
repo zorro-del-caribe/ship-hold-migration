@@ -1,6 +1,6 @@
 {
   "name": "ship-hold-migration",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "migration adapter for ship-hold",
   "main": "index.js",
   "bin": {
