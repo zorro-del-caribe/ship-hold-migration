@@ -1,237 +1,140 @@
-const test = require('tape');
-const mig = require('../index');
-const shiphold = require('ship-hold');
-const conf = {
-  username: process.env.DB_USERNAME !== undefined ? process.env.DB_USERNAME : 'postgres',
-  password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'docker',
-  database: process.env.DB_NAME !== undefined ? process.env.DB_NAME : 'ship-hold-migrations-test'
-}
-;
+const test = require('zora');
+const mig = require('../index.js')['default'];
+const shiphold = require('ship-hold')['default'];
+const conf = require('./db.js');
 
-function clean (sh, modelName = 'migrations') {
-  return sh
-    .model(modelName)
-    .delete()
-    .run();
-}
+const clean = (sh, modelName = 'migrations') => sh
+	.model(modelName)
+	.delete()
+	.run();
 
-test('read all migrations', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
+test('read all migrations', t => {
+	const sh = shiphold(conf);
+	mig(sh, {
+		directory: '/test/migrations'
+	});
 
-  const migrator = sh.migrator();
+	const migrator = sh.migrator();
 
-  const result = migrator
-    .list();
-  t.ok(result.indexOf('barIsIt') !== -1);
-  t.ok(result.indexOf('foo') !== -1);
-  t.end();
+	const result = migrator
+		.list();
+	t.equal(result.length, 2, 'should have two migrations');
+	t.ok(result.includes('barIsIt'), 'should list "barIsIt"');
+	t.ok(result.includes('foo'), 'should list "foo"');
 });
 
-test('return pending migrations (all)', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
+test('migrations ', async t => {
 
-  sh.migrator()
-    .pending()
-    .then(function (result) {
-      t.equal(result.length, 2);
-      t.equal(result[0], 'foo');
-      t.equal(result[1], 'barIsIt');
-      return clean(sh, 'migrations');
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
+	await t.test('check setup', async t => {
+		const sh = mig(shiphold(conf), {directory: './test/migrations'});
+		await sh.migrator().model();
+		await clean(sh);
+		const result = await sh.query(`SELECT now()`);
+		t.ok(result);
+		await sh.stop();
+	});
+
+	await t.test('return pending migrations (all)', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const pendings = await sh.migrator().pending();
+		t.equal(pendings.length, 2);
+		t.equal(pendings[0], 'foo');
+		t.equal(pendings[1], 'barIsIt');
+		await clean(sh, 'migrations');
+		await sh.stop();
+	});
+
+	await t.test('return pending migrations (barIsIt)', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const migrator = sh.migrator();
+		const model = await migrator.model();
+
+		await model
+			.insert({name: 'foo'})
+			.run();
+
+		const pending = await migrator.pending();
+		t.equal(pending.length, 1);
+		t.equal(pending[0], 'barIsIt');
+
+		await clean(sh, 'migrations');
+		await sh.stop();
+	});
+
+	await t.test('run all pending migrations (all)', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const migrator = sh.migrator();
+
+		const pending = await migrator.pending();
+		t.equal(pending.length, 2);
+		const successup = await migrator.up();
+		const resultNames = successup.map(r => r.name);
+		t.deepEqual(resultNames, ['foo', 'barIsIt']);
+		const emptyPending = await migrator.pending();
+		t.equal(emptyPending.length, 0);
+		await clean(sh, 'migrations');
+		await sh.stop();
+	});
+
+	await t.test('return executed migrations', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const migrator = sh.migrator();
+
+		await migrator.up();
+		const executed = await migrator.executed();
+		t.deepEqual(executed, ['foo', 'barIsIt']);
+		await clean(sh);
+		await sh.stop();
+	});
+
+	await t.test('return executed migrations (foo)', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const migrator = sh.migrator();
+
+		const model = await migrator.model();
+		await model.insert({name: 'foo'}).run();
+		const exectued = await migrator.executed();
+		t.deepEqual(exectued, ['foo']);
+		await clean(sh);
+		await sh.stop();
+	});
+
+	await t.test('down the last migration', async t => {
+		const sh = shiphold(conf);
+		mig(sh, {
+			directory: '/test/migrations'
+		});
+
+		const migrator = sh.migrator();
+
+		const successUp = await migrator.up();
+		const resultNames = successUp.map(r => r.name);
+		t.deepEqual(resultNames, ['foo', 'barIsIt']);
+		const successDown = await migrator.down();
+		t.equal(successDown.name, 'barIsIt');
+		const pendings = await migrator.pending();
+		t.deepEqual(pendings, ['barIsIt']);
+		await clean(sh, 'migrations');
+		await sh.stop();
+	});
 });
-
-test('return pending migrations (barIsIt)', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator.model()
-    .then(model=> {
-      return model
-        .insert({name: 'foo'})
-        .run();
-    })
-    .then(function () {
-      return migrator.pending();
-    })
-    .then(function (result) {
-      t.equal(result.length, 1);
-      t.equal(result[0], 'barIsIt');
-      return clean(sh, 'migrations');
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-
-
-});
-
-test('run all pending migrations (all)', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator
-    .pending()
-    .then(function (result) {
-      t.equal(result.length, 2);
-      return migrator.up();
-    })
-    .then(function (result) {
-      const resultNames = result.map(r=>r.name);
-      t.deepEqual(resultNames, ['foo', 'barIsIt']);
-      return migrator.pending();
-    })
-    .then(function (result) {
-      t.equal(result.length, 0);
-      return clean(sh, 'migrations');
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-});
-
-test('run all pending migrations (barIsIt)', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator
-    .model()
-    .then(function (model) {
-      return model
-        .insert({name: 'foo'})
-        .run();
-    })
-    .then(function () {
-      return migrator.pending();
-    })
-    .then(function (result) {
-      t.equal(result.length, 1);
-      return migrator.up();
-    })
-    .then(function (result) {
-      const resultNames = result.map(r=>r.name);
-      t.deepEqual(resultNames, ['barIsIt']);
-      return migrator.pending();
-    })
-    .then(function (result) {
-      t.equal(result.length, 0);
-      return clean(sh, 'migrations');
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-});
-
-test('return executed migrations', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator.up()
-    .then(function () {
-      return migrator.executed();
-    })
-    .then(function (result) {
-      t.deepEqual(result, ['foo', 'barIsIt']);
-    })
-    .then(function () {
-      return clean(sh)
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-});
-
-test('return executed migrations (foo)', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator.model()
-    .then(model=> {
-      return model.insert({name: 'foo'}).run();
-    })
-    .then(function () {
-      return migrator.executed();
-    })
-    .then(function (result) {
-      t.deepEqual(result, ['foo']);
-      return clean(sh);
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-});
-
-test('down the last migration', t=> {
-  const sh = shiphold(conf);
-  mig(sh, {
-    directory: '/test/migrations'
-  });
-
-  const migrator = sh.migrator();
-
-  migrator.up()
-    .then(function (result) {
-      const resultNames = result.map(r=>r.name);
-      t.deepEqual(resultNames, ['foo', 'barIsIt']);
-      return migrator.down();
-    })
-    .then(function (result) {
-      t.equal(result.length, 1);
-      t.equal(result[0].name, 'barIsIt');
-      return migrator.pending();
-    })
-    .then(function (pendings) {
-      t.deepEqual(pendings, ['barIsIt']);
-      return clean(sh, 'migrations');
-    })
-    .then(function () {
-      sh.stop();
-      t.end();
-    })
-    .catch(t.end);
-});
-
-
-
-
-

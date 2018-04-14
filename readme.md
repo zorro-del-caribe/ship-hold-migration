@@ -12,14 +12,13 @@ const mig=require('ship-hold-migration');
 
 mig(sh);
 
-const migrator = sh.migratior();
+const migrator = sh.migrator();
 
 migrator.up()
     .then(function(){
         return migrator.down();
     });
 ```
-
 
 ### migration file 
 A migration file must contains **up** (executing a migration) and **down** (rolling back a migration) methods which return *Promise*; and a **timestamp** property referring to the creation date of the migration (so migration can be ordered)
@@ -31,38 +30,15 @@ You can optionally add a **name** property otherwise it will use the file name (
 module.exports = {
     name:'createUserTable',
     timestamp:12312423423,
-    up(sh){
-    //code to execute for the migration (sh is the shiphold instance)
-        return sh.getConnection()
-            .then(function ({client, done})
-                return new Promise(function(resolve,reject){
-                    client.query(`
-                    CREATE TABLE users(
-                        id serial PRIMARY KEY,
-                        name varchar(128)
-                    );
-                    `, function(err,res){
-                        if(err)
-                            return reject(err);
-                        resolve(res);
-                    });
-                });
-            });
+    async up(sh){
+        //code to execute for the migration (sh is the shiphold instance)
+        return sh.query(`CREATE TABLE users(
+            id serial PRIMARY KEY,
+            name varchar(128)
+        );`);
     },
-    down(sh){
-    //code to execute in case of rollback
-        return sh.getConnection()
-                    .then(function ({client, done})
-                        return new Promise(function(resolve,reject){
-                            client.query(`
-                            DROP TABLE users
-                            `, function(err,res){
-                                if(err)
-                                    return reject(err);
-                                resolve(res);
-                            });
-                        });
-                    });
+    async down(sh){
+        return sh.query(`DROP TABLE users`);
     }
 }
 ```
@@ -88,5 +64,3 @@ return a *Promise* which resolves with the names of all migrations (as an array)
 return a *Promise* which resolves with all the migrations objects (as an array)
 ### model
 Find or create the model related to migrations meta data. resolve a *Promise* with that model.
- 
- 

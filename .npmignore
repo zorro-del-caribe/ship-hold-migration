@@ -1,0 +1,6 @@
+.idea
+.circleci
+node_modules
+test
+.babelrc
+rollup.conf.js
