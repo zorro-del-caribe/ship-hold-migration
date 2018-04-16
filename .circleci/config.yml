@@ -6,9 +6,9 @@ version: 2
 jobs:
   build:
     environment:
-      - POSTGRES_USER=docker
-      - POSTGRES_DB=ship-hold-migrations-test
-      - POSTGRES_PASSWORD=docker
+       - POSTGRES_USER=root
+       - POSTGRES_DB=circle_test
+       - POSTGRES_PASSWORD=root
     docker:
       - image: circleci/node:9
       - image: circleci/postgres:10
@@ -30,6 +30,6 @@ jobs:
           key: v1-dependencies-{{ checksum "package.json" }}
 
       # run tests!
-      - run: npm test
+      - run: npm run test:ci
 
   

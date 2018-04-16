@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "node ./test/index.js",
-    "build": "babel lib/*.mjs ./index.mjs --out-dir ."
+    "build": "babel lib/*.mjs ./index.mjs --out-dir .",
+    "test:ci": "npm run test | tap-set-exit"
   },
   "keywords": [
     "ship-hold",
@@ -23,6 +24,7 @@
     "babel-cli": "^6.26.0",
     "babel-plugin-dynamic-import-node": "^1.2.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
+    "tap-set-exit": "^1.1.1",
     "zora": "^2.0.1"
   },
   "dependencies": {
